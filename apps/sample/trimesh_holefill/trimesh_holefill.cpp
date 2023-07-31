@@ -37,9 +37,6 @@ This file contain a minimal example of the library, showing how to load a mesh a
 #include <iostream>
 #include <iomanip>
 
-using namespace vcg;
-using namespace std;
-
 int main( int argc, char **argv )
 {
     if(argc<2)
@@ -49,17 +46,17 @@ int main( int argc, char **argv )
     }
     MyMesh m;
     
-    cout << std::fixed;
-    cout << std::setprecision(2);
+    std::cout << std::fixed;
+    std::cout << std::setprecision(2);
     
-    if(tri::io::ImporterOFF<MyMesh>::Open(m,argv[1])!=tri::io::ImporterOFF<MyMesh>::NoError)
+    if(vcg::tri::io::ImporterOFF<MyMesh>::Open(m,argv[1])!= vcg::tri::io::ImporterOFF<MyMesh>::NoError)
     {
       printf("Error reading file  %s\n",argv[1]);
       exit(0);
     }
     
-    tri::RequirePerVertexNormal(m);
-    tri::UpdateTopology<MyMesh>::FaceFace(m);
+    vcg::tri::RequirePerVertexNormal(m);
+    vcg::tri::UpdateTopology<MyMesh>::FaceFace(m);
     HoleFill<MyMesh>::my_hole_fill(m, "hole_filled.off");
     return 0;
 }

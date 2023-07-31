@@ -6,8 +6,6 @@
 #include <vector>
 #include "map_EF.h"
 #include "alg_util.h"
-using namespace vcg;
-using namespace std;
 
 
 struct AngleArea {
@@ -36,9 +34,9 @@ class TriangulationAlg {
 private:
 	MeshType mesh;
 	EdgeFaceMap<MeshType> eFM;
-	vector<VertexType*> bV;
-	vector<vector<AngleArea>> w_matrix;
-	vector<vector<int>> delta_matrix;
+	std::vector<VertexType*> bV;
+	std::vector<std::vector<AngleArea>> w_matrix;
+	std::vector<std::vector<int>> delta_matrix;
 
 
 	/*
@@ -55,22 +53,22 @@ private:
 	{
 
 			   //edge vectors of first triangle
-		Point3f f1_vec1 = f1_v1->P() - f1_v0->P();
-		Point3f f1_vec2 = f1_v2->P() - f1_v1->P();
+		vcg::Point3f f1_vec1 = f1_v1->P() - f1_v0->P();
+		vcg::Point3f f1_vec2 = f1_v2->P() - f1_v1->P();
 
 			   //normal of the first triangle
-		Point3f normal1(
+		vcg::Point3f normal1(
 			f1_vec1.Y() * f1_vec2.Z() - f1_vec1.Z() * f1_vec2.Y(),
 			f1_vec1.Z() * f1_vec2.X() - f1_vec1.X() * f1_vec2.Z(),
 			f1_vec1.X() * f1_vec2.Y() - f1_vec1.Y() * f1_vec2.X()
 			);
 
 			   //edge vectors of second triangle
-		Point3f f2_vec1 = f2_v1->P() - f2_v0->P();
-		Point3f f2_vec2 = f2_v2->P() - f2_v1->P();
+		vcg::Point3f f2_vec1 = f2_v1->P() - f2_v0->P();
+		vcg::Point3f f2_vec2 = f2_v2->P() - f2_v1->P();
 
 			   //normal of the second triangle
-		Point3f normal2(
+		vcg::Point3f normal2(
 			f2_vec1.Y() * f2_vec2.Z() - f2_vec1.Z() * f2_vec2.Y(),
 			f2_vec1.Z() * f2_vec2.X() - f2_vec1.X() * f2_vec2.Z(),
 			f2_vec1.X() * f2_vec2.Y() - f2_vec1.Y() * f2_vec2.X()
@@ -107,21 +105,21 @@ private:
 		auto front = mesh.vert.begin();
 		if (i + 2 == k) {
 			// In this case, we just append the triangle to the mesh.
-			AlgUtil<MeshType>::addTriangle(mesh, &front[i], &front[i+1], &front[i+2]);
+			vcg::tri::Allocator<MeshType>::AddFace(mesh, &front[i], &front[i+1], &front[i+2]);
 		}
 		else {
 			int o = getDelta(i, k);
 			if (o != i + 1) trace(i, o);
-			AlgUtil<MeshType>::addTriangle(mesh, &front[i], &front[o], &front[k]);
+			vcg::tri::Allocator<MeshType>::AddFace(mesh, &front[i], &front[o], &front[k]);
 			if (o != k - 1) trace(o, k);
 		}
 	}
 public:
 
-	TriangulationAlg(vector<VertexType*> bV, EdgeFaceMap<MeshType> eFM): bV(bV), eFM(eFM) {
-		tri::RequirePerVertexNormal(mesh);
+	TriangulationAlg(std::vector<VertexType*> bV, EdgeFaceMap<MeshType> eFM): bV(bV), eFM(eFM) {
+		vcg::tri::RequirePerVertexNormal(mesh);
 		size_t n = bV.size();
-		auto ptr = tri::Allocator<MeshType>::AddVertices(mesh, n);
+		auto ptr = vcg::tri::Allocator<MeshType>::AddVertices(mesh, n);
 		for (int i = 0; i < n; i++, ptr++) {
 			//update coords and normal of each vertex
 			ptr->P() = bV[i]->P();
@@ -129,8 +127,8 @@ public:
 		}
 
 		//initializes the matrix as n*n, filled with dummy values.
-		w_matrix = vector<vector<AngleArea>>(n, vector<AngleArea>(n, AngleArea()));
-		delta_matrix = vector<vector<int>>(n, vector<int>(n, 0));
+		w_matrix = std::vector<std::vector<AngleArea>>(n, std::vector<AngleArea>(n, AngleArea()));
+		delta_matrix = std::vector<std::vector<int>>(n, std::vector<int>(n, 0));
 	}
 
 	int getDelta(int i, int k) {
@@ -192,7 +190,7 @@ public:
 			for (int i = 0; i < n - j; i++) {
 				int k = i + j;
 				int m = i + 1;
-				vector<vector<VertexType*>> adj_faces =
+				std::vector<std::vector<VertexType*>> adj_faces =
 					{ {bV[i], bV[getDelta(i,m)], bV[m]},
 					 {bV[m], bV[getDelta(m,k)], bV[k]} };
 				if (i == 0 && k == n - 1) {
@@ -223,7 +221,7 @@ public:
 			   // Recover the triangulation
 			   // In this case we are going to add the triangles to the mesh
 		trace(0, n - 1);
-		tri::UpdateTopology<MeshType>::FaceFace(mesh);
+		vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
 
 		return mesh;
 	}
@@ -236,11 +234,11 @@ public:
 	 * Now it calculates the AngleArea struct of the current triangle, taking into account the
 	 * maximum dihedral angle between the current triangle and the adjacent triangles.
 	 */
-	static AngleArea omega(VertexType* v1, VertexType* v2, VertexType* v3, vector<vector<VertexType*>> adj_faces) {
+	static AngleArea omega(VertexType* v1, VertexType* v2, VertexType* v3, std::vector<std::vector<VertexType*>> adj_faces) {
 		double area = omega_area(v1, v2, v3);
 		assert(adj_faces.size() > 0);
 		double max_dihedral_angle = 0;
-		for (vector<VertexType*> f : adj_faces) {
+		for (std::vector<VertexType*> f : adj_faces) {
 			VertexType* other_v1 = f[0];
 			VertexType* other_v2 = f[1];
 			VertexType* other_v3 = f[2];

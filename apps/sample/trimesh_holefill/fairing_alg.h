@@ -7,9 +7,6 @@
 #include <Eigen/IterativeLinearSolvers>
 #include <unordered_set>
 
-using namespace vcg;
-using namespace std;
-
 template<class MeshType>
 class FairingAlg {
 	typedef typename MeshType::FaceType FaceType;
@@ -17,7 +14,7 @@ class FairingAlg {
 private:
 	int bv_n;
 	MeshType& mesh;
-	vector<int> internal_verts; //vector of internal vertices (vertices not on the border)
+	std::vector<int> internal_verts; //vector of internal vertices (vertices not on the border)
 
 	/*
 	 * Returns a vector with the neighbors vertices of v
@@ -35,7 +32,7 @@ private:
 			//vertex is on the border. We also need to add the vertices on the surrounding mesh.
 
 				   //we establish a halfedge position, on a face and vertex which are on the border
-			face::Pos<FaceType> start(bF[v_idx], bV[v_idx]);
+			vcg::face::Pos<FaceType> start(bF[v_idx], bV[v_idx]);
 
 				   //the halfedge might be on the border, so we switch the edge in this case
 			if (start.IsBorder()) start.FlipE();
@@ -54,26 +51,26 @@ private:
 		}
 		return ret;
 	}
-	vector<VertexType*> bV;
-	vector<FaceType*> bF;
+	std::vector<VertexType*> bV;
+	std::vector<FaceType*> bF;
 public:
 
-	FairingAlg(MeshType& mesh, vector<VertexType*> bV, vector<FaceType*> bF) : mesh(mesh), bV(bV), bF(bF) {
+	FairingAlg(MeshType& mesh, std::vector<VertexType*> bV, std::vector<FaceType*> bF) : mesh(mesh), bV(bV), bF(bF) {
 		bv_n = bV.size();
 		//adds to internal_verts the indices of the vertices which are not on the border.
 		for (int i = 0; i < mesh.VN(); i++) {
 			if (i >= bv_n) internal_verts.push_back(i); //if the vertex is not on the border, add to internal_verts
 		}
 		for (int idx : internal_verts) {
-			cout << idx << " ";
+			std::cout << idx << " ";
 		}
-		cout << endl;
-		tri::UpdateTopology<MeshType>::AllocateEdge(mesh);
-		tri::UpdateTopology<MeshType>::VertexEdge(mesh);
+		std::cout << std::endl;
+		vcg::tri::UpdateTopology<MeshType>::AllocateEdge(mesh);
+		vcg::tri::UpdateTopology<MeshType>::VertexEdge(mesh);
 	}
 
 	float scale_dependent(VertexType* v1, VertexType* v2) {
-		return distance(v1->P(), v2->P());
+		return vcg::Distance(v1->P(), v2->P());
 	}
 
 	float uniform(VertexType* v1, VertexType* v2) {
@@ -84,10 +81,10 @@ public:
 	 * Gets a half edge on the edge whose umbrella operator needs to be calculated
 	 * Assumes the hedge has 2 adjacent triangles!!!
 	 */
-	float harmonic(face::Pos<FaceType> hedge) {
+	float harmonic(vcg::face::Pos<FaceType> hedge) {
 		assert(hedge.F() != hedge.FFlip()); //ensures the hedge has 2 adjacent triangles
-		face::Pos<FaceType> vk1 = hedge;
-		face::Pos<FaceType> vk2 = hedge;
+		vcg::face::Pos<FaceType> vk1 = hedge;
+		vcg::face::Pos<FaceType> vk2 = hedge;
 		VertexType* vi = hedge.V();
 		VertexType* vj = hedge.VFlip();
 		vk1.FlipE();
@@ -113,7 +110,7 @@ public:
 		float cu_v = 0;
 		std::vector<VertexType*> vert_vec;
 		vcg::edge::VVStarVE(v, vert_vec);
-		if (vert_vec.size() == 0) cout << "is empty" << endl;
+		if (vert_vec.size() == 0) std::cout << "is empty" << std::endl;
 
 		for (VertexType* curr_v : vert_vec) {
 			assert(curr_v != v);
@@ -122,7 +119,7 @@ public:
 		return cu_v;
 	}
 
-	Point3f U_cu(VertexType* v) {
+	vcg::Point3f U_cu(VertexType* v) {
 		assert(!v->IsB());
 
 			   //cu(v) calculation
@@ -131,7 +128,7 @@ public:
 		std::vector<VertexType*> vert_vec;
 		vcg::edge::VVStarVE(v, vert_vec);
 
-		Point3f ret(0, 0, 0);
+		vcg::Point3f ret(0, 0, 0);
 		for (VertexType* curr_v : vert_vec) {
 			//curr_v is the vertex on the other end of the edge
 			assert(curr_v != v);
@@ -145,15 +142,15 @@ public:
 		return ret;
 	}
 
-	Point3f U2_cu(VertexType* v) {
+	vcg::Point3f U2_cu(VertexType* v) {
 		assert(!v->IsB());
 		float cu_v = cu(v);
-		Point3f u_cu_v = U_cu(v);
+		vcg::Point3f u_cu_v = U_cu(v);
 
 		std::vector<VertexType*> vert_vec;
 		vcg::edge::VVStarVE(v, vert_vec);
 
-		Point3f ret(0, 0, 0);
+		vcg::Point3f ret(0, 0, 0);
 		for (VertexType* curr_v : vert_vec) {
 			//curr_v is the vertex on the other end of the edge
 			assert(curr_v != v);
@@ -189,7 +186,7 @@ public:
 		for (int j = 0; j < n; j++) {
 			int index = internal_verts[j];
 
-			vector<double> points(n, 0);
+			std::vector<double> points(n, 0);
 
 			VertexType* v = &mesh.vert[index];
 			std::vector<VertexType*> v_i_vec = get_neighbors(v);
@@ -261,18 +258,18 @@ public:
 				  sparseMatrix.insert(index, i) = points[i];
 			  }
 		  }*/
-		cout << "printing linear system! " << endl;
+		std::cout << "printing linear system! " << std::endl;
 		for (int i = 0; i < n; i++) {
 			//left side of the equation
 			for (int j = 0; j < n; j++) {
-				cout << sparseMatrix.coeffRef(i, j) << " ";
+				std::cout << sparseMatrix.coeffRef(i, j) << " ";
 			}
-			cout << "| ";
+			std::cout << "| ";
 			//right side of the equation
 			for (int col = 0; col < 3; col++) {
-				cout << vect.coeffRef(i, col) << " ";
+				std::cout << vect.coeffRef(i, col) << " ";
 			}
-			cout << endl;
+			std::cout << std::endl;
 		}
 
 		//cout << "printing vect! " << endl;
@@ -291,21 +288,21 @@ public:
 		solver.compute(sparseMatrix);
 		if (solver.info() != Eigen::Success) {
 			// We calculate the information and check if it is a success or not
-			cout << "error compute" << endl;
+			std::cout << "error compute" << std::endl;
 			//return mesh;
 		}
 
 		SparseMatrix sol = solver.solve(vect); //solution computation
 		if (solver.info() != Eigen::Success) {
 			// Here the solving has failed
-			cout << "error solving solution" << endl;
+			std::cout << "error solving solution" << std::endl;
 			//return mesh;
 		}
 
 		for (int i = 0; i < internal_verts.size(); i++) {
 			VertexType* v = &mesh.vert[i+bv_n];
 			//v->P() = v->P() + Point3f(x(i), y(i), z(i));
-			v->P() = Point3f(sol.coeffRef(i, 0), sol.coeffRef(i, 1), sol.coeffRef(i, 2));
+			v->P() = vcg::Point3f(sol.coeffRef(i, 0), sol.coeffRef(i, 1), sol.coeffRef(i, 2));
 		}
 
 		return mesh;

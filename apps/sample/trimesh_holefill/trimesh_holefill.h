@@ -1,8 +1,5 @@
 #include "my_mesh.h"
 
-using namespace vcg;
-using namespace std;
-
 #include "triangulation_alg.h"
 #include "refinement_alg.h"
 #include "fairing_alg.h"
@@ -16,16 +13,16 @@ public:
 	typedef typename MeshType::VertexType VertexType;
 	typedef typename MeshType::FaceType FaceType;
 	static void my_hole_fill(MeshType& input_mesh, const char* output_mesh) {
-		tri::UpdateFlags<MeshType>::VertexClearV(input_mesh);
+		vcg::tri::UpdateFlags<MeshType>::VertexClearV(input_mesh);
 		int border_loop_count = 0;
 		int border_vertex_count = 0;
-		vector<MeshType*> patched_holes;
+		std::vector<MeshType*> patched_holes;
 		// search for a boundary face
 		for (auto fi = input_mesh.face.begin(); fi != input_mesh.face.end(); ++fi) {
 			for (int i = 0; i < 3; ++i) {
-				if (face::IsBorder(*fi, i) && !(*fi).V(i)->IsV()) {// mark visited the vertices of the border edge
-					vector<VertexType*> borderVertices;
-					vector<FaceType*> borderFaces; //vector of faces on the border
+				if (vcg::face::IsBorder(*fi, i) && !(*fi).V(i)->IsV()) {// mark visited the vertices of the border edge
+					std::vector<VertexType*> borderVertices;
+					std::vector<FaceType*> borderFaces; //vector of faces on the border
 					EdgeFaceMap<MeshType> map;
 					(*fi).V(i)->SetV();
 					// now start a walk along the border
@@ -33,8 +30,8 @@ public:
 					borderFaces.push_back(&*fi);
 					border_vertex_count += 1;
 					//++border_loop_count;
-					face::Pos<FaceType> start(&*fi, i);
-					face::Pos<FaceType> cur = start;
+					vcg::face::Pos<FaceType> start(&*fi, i);
+					vcg::face::Pos<FaceType> cur = start;
 					do
 					{
 						assert(cur.IsBorder());
@@ -54,39 +51,36 @@ public:
 							borderVertices.push_back(cur.V());
 							borderFaces.push_back(&*cur.F());
 						}
-						cur.F()->C() = Color4b::Red;
+						cur.F()->C() = vcg::Color4b::Red;
 					} while (cur != start);
 					//here one hole has been traversed all the way
 					MeshType* final_patch = nullptr;
 					MeshType* cpy = nullptr;
 
 					//Triangulation Algorithm
-					cout << "before triangulation" << endl;
+					std::cout << "before triangulation" << std::endl;
 					TriangulationAlg<MeshType> ta(borderVertices, map);
 					final_patch = &ta.algorithm();
 					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
-					tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + to_string(border_loop_count) + "triangulation.off").c_str(), tri::io::Mask::IOM_FACECOLOR);
-					AlgUtil<MeshType>::free_mesh(*cpy);
+					vcg::tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + std::to_string(border_loop_count) + "triangulation.off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
 
 					//Refining Algorithm
-					cout << "before refining" << endl;
+					std::cout << "before refining" << std::endl;
 					RefinementAlg<MeshType> ra(*final_patch, borderVertices, borderFaces);
 					final_patch = &ra.algorithm();
 					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
-					tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + to_string(border_loop_count) + "refined.off").c_str(), tri::io::Mask::IOM_FACECOLOR);
-					AlgUtil<MeshType>::free_mesh(*cpy);
+					vcg::tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + std::to_string(border_loop_count) + "refined.off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
 					//Fairing Algorithm
-					cout << "before fairing" << endl;
+					std::cout << "before fairing" << std::endl;
 					FairingAlg<MeshType> fa(*final_patch, borderVertices, borderFaces);
 					final_patch = &fa.algorithm();
 					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
-					tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + to_string(border_loop_count) + "faired.off").c_str(), tri::io::Mask::IOM_FACECOLOR);
-					AlgUtil<MeshType>::free_mesh(*cpy);
+					vcg::tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + std::to_string(border_loop_count) + "faired.off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
 
 					patched_holes.push_back(final_patch);
@@ -101,7 +95,7 @@ public:
 			vcg::tri::Append<MeshType, MeshType>::Mesh(input_mesh, *patched_hole);
 		}
 		// save the mesh with the border faces colored in red
-		//tri::io::ExporterOFF<MeshType>::Save(input_mesh, output_mesh, tri::io::Mask::IOM_FACECOLOR);
+		//vcg::tri::io::ExporterOFF<MeshType>::Save(input_mesh, output_mesh, vcg::tri::io::Mask::IOM_FACECOLOR);
 	}
 
 };

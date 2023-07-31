@@ -5,8 +5,6 @@
 #include <unordered_map>
 #include <cmath>
 #include <iostream>
-using namespace std;
-using namespace vcg;
 
 template<class MeshType>
 class RefinementAlg {
@@ -17,20 +15,20 @@ private:
 	MeshType& m;
 	MeshType* new_mesh = nullptr;
 	MeshType* aux_mesh = nullptr;
-	vector<VertexType*> bV; //border vertices
-	vector<FaceType*> bF; //border faces
-	vector<double> scale; //vector of scale for each vertex. scale[i] is the scale of the i_th vertexs
+	std::vector<VertexType*> bV; //border vertices
+	std::vector<FaceType*> bF; //border faces
+	std::vector<double> scale; //vector of scale for each vertex. scale[i] is the scale of the i_th vertexs
 
 public:
 
-	RefinementAlg(MeshType& m, vector<VertexType*> bV, vector<FaceType*> bF): m(m), bV(bV), bF(bF) {
+	RefinementAlg(MeshType& m, std::vector<VertexType*> bV, std::vector<FaceType*> bF): m(m), bV(bV), bF(bF) {
 		alpha = sqrt(2);
 
 		aux_mesh = new MeshType();
-		tri::RequirePerVertexNormal(*aux_mesh);
+		vcg::tri::RequirePerVertexNormal(*aux_mesh);
 
 		size_t n = bV.size();
-		auto ptr_m2 = tri::Allocator<MeshType>::AddVertices(*aux_mesh, n);
+		auto ptr_m2 = vcg::tri::Allocator<MeshType>::AddVertices(*aux_mesh, n);
 
 		for (auto vi = m.vert.begin(); vi != m.vert.end(); vi++, ptr_m2++) {
 			ptr_m2->P() = vi->P();
@@ -43,12 +41,12 @@ public:
 			int v0_index = AlgUtil<MeshType>::index_of_vertex(m, v0);
 			int v1_index = AlgUtil<MeshType>::index_of_vertex(m, v1);
 			int v2_index = AlgUtil<MeshType>::index_of_vertex(m, v2);
-			AlgUtil<MeshType>::addTriangle(*aux_mesh,
+			vcg::tri::Allocator<MeshType>::AddFace(*aux_mesh,
 						AlgUtil<MeshType>::get_vertex(*aux_mesh, v0_index),
 						AlgUtil<MeshType>::get_vertex(*aux_mesh, v1_index),
 						AlgUtil<MeshType>::get_vertex(*aux_mesh, v2_index));
 		}
-		tri::UpdateTopology<MeshType>::FaceFace(*aux_mesh);
+		vcg::tri::UpdateTopology<MeshType>::FaceFace(*aux_mesh);
 	}
 
 	MeshType& algorithm() {
@@ -63,26 +61,26 @@ public:
 		for (int i = 0; i < bV.size(); i++) {
 			//iterate over all the faces on the border
 			//face::Pos<FaceType> cur(bF[i], 0);
-			face::Pos<FaceType> cur(bF[i], bV[i]);
+			vcg::face::Pos<FaceType> cur(bF[i], bV[i]);
 			if (!cur.IsBorder()) {
 				//if it's not a border, switch the edge (to go to the border)
 				cur.FlipE();
 				assert(cur.IsBorder());
 			}
-			Point3f orig = cur.V()->P();
+			vcg::Point3f orig = cur.V()->P();
 			double sum_distance = 0;
 			int count = 0;
 			do {
-				Point3f dist = cur.VFlip()->P();
-				sum_distance += distance(orig, dist);
+				vcg::Point3f dist = cur.VFlip()->P();
+				sum_distance += vcg::Distance(orig, dist);
 				count++;
 				cur.FlipE();
 				cur.FlipF();
 
 			} while (!cur.IsBorder());
 			//calculate last edge length
-			Point3f dest = cur.VFlip()->P();
-			sum_distance += distance(orig, dest);
+			vcg::Point3f dest = cur.VFlip()->P();
+			sum_distance += vcg::Distance(orig, dest);
 			count++;
 
 			double avg_distance = sum_distance / count;
@@ -127,7 +125,7 @@ public:
 		//		//definition of alpha condition
 		//		auto check = [&](VertexType* v) {
 		//			Point3f dest = v->P();
-		//			double dist = distance(centroid_cords, dest);
+		//			double dist = vcg::Distance(centroid_cords, dest);
 		//			double value = alpha * dist;
 		//			if (value > scale_centroid && value > scale[index_of_vertex(*aux_mesh, v)]) return true;
 		//			return false;
@@ -152,8 +150,8 @@ public:
 		//			//fi->V(2) = centroid; //modify current triangle
 		//			//
 		//			////and add other two triangles
-		//			//addTriangle(*aux_mesh, centroid, v0, v2);
-		//			//addTriangle(*aux_mesh, centroid, v1, v2);
+		//			//tri::Allocator<MeshType>::AddFace(*aux_mesh, centroid, v0, v2);
+		//			//tri::Allocator<MeshType>::AddFace(*aux_mesh, centroid, v1, v2);
 		//		}
 		//		else {
 		//			//otherwise we don't add any triangle to the current mesh
@@ -212,7 +210,7 @@ public:
 				   //at the end of this step, we free m, and set it to the new mesh
 			new_mesh = new MeshType();
 			int n = aux_mesh->VN();
-			auto ptr = tri::Allocator<MeshType>::AddVertices(*new_mesh, n);
+			auto ptr = vcg::tri::Allocator<MeshType>::AddVertices(*new_mesh, n);
 			for (int i = 0; i < n; i++, ptr++) {
 				//update coords and normal of each vertex
 				ptr->P() = (&aux_mesh->vert.front())[i].P();
@@ -227,7 +225,7 @@ public:
 				int v1_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v1);
 				int v2_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v2);
 
-				Point3f centroid_cords = (v0->P() + v1->P() + v2->P()) / 3;
+				vcg::Point3f centroid_cords = (v0->P() + v1->P() + v2->P()) / 3;
 				double scale_v0 = scale[v0_index];
 				double scale_v1 = scale[v1_index];
 				double scale_v2 = scale[v2_index];
@@ -235,8 +233,8 @@ public:
 
 					   //definition of alpha condition
 				auto check = [&](VertexType* v) {
-					Point3f dest = v->P();
-					double dist = distance(centroid_cords, dest);
+					vcg::Point3f dest = v->P();
+					double dist = vcg::Distance(centroid_cords, dest);
 					double value = alpha * dist;
 					if (value > scale_centroid && value > scale[AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v)]) return true;
 					return false;
@@ -246,24 +244,24 @@ public:
 				 * This lambda function receives a half edge on the current face, and calculates if the edge
 				 * needs to be relaxed, and adds the new triangle accordingly.
 				 */
-				auto replace_relax = [&](face::Pos<FaceType> hedge, VertexType* centroid) {
-					face::Pos<FaceType> aux2 = hedge;
+				auto replace_relax = [&](vcg::face::Pos<FaceType> hedge, VertexType* centroid) {
+					vcg::face::Pos<FaceType> aux2 = hedge;
 					VertexType* mutual_vert1 = aux2.V();
-					Point3f mutual_vert1_cords = mutual_vert1->P();
+					vcg::Point3f mutual_vert1_cords = mutual_vert1->P();
 					aux2.FlipV();
 					VertexType* mutual_vert2 = aux2.V();
-					Point3f mutual_vert2_cords = mutual_vert2->P();
-					double current_edge_dist = distance(mutual_vert1_cords, mutual_vert2_cords);
+					vcg::Point3f mutual_vert2_cords = mutual_vert2->P();
+					double current_edge_dist = vcg::Distance(mutual_vert1_cords, mutual_vert2_cords);
 					int mutual_vert1_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, mutual_vert1);
 					int mutual_vert2_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, mutual_vert2);
 					//int centroid_index = index_of_vertex(*new_mesh, centroid);
-					AlgUtil<MeshType>::addTriangle(*new_mesh, centroid, AlgUtil<MeshType>::get_vertex(*new_mesh, mutual_vert1_index), AlgUtil<MeshType>::get_vertex(*new_mesh, mutual_vert2_index));
+					vcg::tri::Allocator<MeshType>::AddFace(*new_mesh, centroid, AlgUtil<MeshType>::get_vertex(*new_mesh, mutual_vert1_index), AlgUtil<MeshType>::get_vertex(*new_mesh, mutual_vert2_index));
 					return;
 					//if (hedge.IsBorder()) {
 					//	//if the half edge is on the border, this means that the adjacent triangle is
 					//	// on the surrounding mesh, and we don't want to modify it, so we just add the triangle
-					//	addTriangle(*new_mesh, centroid, get_vertex(*new_mesh, mutual_vert1_index), get_vertex(*new_mesh, mutual_vert2_index));
-					//	//addTriangle(*new_mesh, centroid, &*(new_mesh->vert.begin()+vert1_index), old2new[mutual_vert2]);
+					//	tri::Allocator<MeshType>::AddFace(*new_mesh, centroid, get_vertex(*new_mesh, mutual_vert1_index), get_vertex(*new_mesh, mutual_vert2_index));
+					//	//tri::Allocator<MeshType>::AddFace(*new_mesh, centroid, &*(new_mesh->vert.begin()+vert1_index), old2new[mutual_vert2]);
 					//	return;
 					//}
 					//
@@ -276,20 +274,20 @@ public:
 					//VertexType* non_mutual_vert = aux1.V();
 					//int non_mutual_vert_index = index_of_vertex(*aux_mesh, non_mutual_vert);
 					//Point3f non_mutual_vert_cords = aux1.V()->P();
-					//double relaxed_edge_dist = distance(centroid_cords, non_mutual_vert_cords);
+					//double relaxed_edge_dist = vcg::Distance(centroid_cords, non_mutual_vert_cords);
 					//
 					//if (relaxed_edge_dist < current_edge_dist) {
 					//	//We relax the edge, because the relaxed edge is smaller than the current one.
 					//	//So we add both triangles to the new mesh, and we set the other triangle as visited.
 					//	adj_face->SetV();
-					//	addTriangle(*new_mesh, &*centroid, get_vertex(*new_mesh, mutual_vert1_index), get_vertex(*new_mesh, non_mutual_vert_index));
-					//	addTriangle(*new_mesh, &*centroid, get_vertex(*new_mesh, mutual_vert2_index), get_vertex(*new_mesh, non_mutual_vert_index));
+					//	tri::Allocator<MeshType>::AddFace(*new_mesh, &*centroid, get_vertex(*new_mesh, mutual_vert1_index), get_vertex(*new_mesh, non_mutual_vert_index));
+					//	tri::Allocator<MeshType>::AddFace(*new_mesh, &*centroid, get_vertex(*new_mesh, mutual_vert2_index), get_vertex(*new_mesh, non_mutual_vert_index));
 					//
 					//}
 					//else {
 					//	//We don't relax the edge, so we just add the triangle
 					//	// the face adjacent to this new triangle remains unchanged, and is yet to be visited.
-					//	addTriangle(*new_mesh, centroid, get_vertex(*new_mesh, mutual_vert1_index), get_vertex(*new_mesh, mutual_vert2_index));
+					//	tri::Allocator<MeshType>::AddFace(*new_mesh, centroid, get_vertex(*new_mesh, mutual_vert1_index), get_vertex(*new_mesh, mutual_vert2_index));
 					//}
 				};
 
@@ -298,14 +296,14 @@ public:
 					//we add the centroid vertex to the new mesh
 					// we can only add it once.
 					triangles_added = true;
-					auto centroid = tri::Allocator<MeshType>::AddVertices(*new_mesh, 1);
+					auto centroid = vcg::tri::Allocator<MeshType>::AddVertices(*new_mesh, 1);
 					centroid->P() = centroid_cords;
 					scale.push_back(scale_centroid);
 
 						   //we create the half edge positions on each of the outer edges
-					face::Pos<FaceType> hedge0(&*fi, 0, v0);
-					face::Pos<FaceType> hedge1(&*fi, 1, v1);
-					face::Pos<FaceType> hedge2(&*fi, 2, v2);
+					vcg::face::Pos<FaceType> hedge0(&*fi, 0, v0);
+					vcg::face::Pos<FaceType> hedge1(&*fi, 1, v1);
+					vcg::face::Pos<FaceType> hedge2(&*fi, 2, v2);
 
 					replace_relax(hedge0, &*centroid);
 					replace_relax(hedge1, &*centroid);
@@ -313,14 +311,14 @@ public:
 				}
 				else {
 					//otherwise we just add this triangle to the new mesh
-					AlgUtil<MeshType>::addTriangle(*new_mesh,
+					vcg::tri::Allocator<MeshType>::AddFace(*new_mesh,
 								AlgUtil<MeshType>::get_vertex(*new_mesh, v0_index),
 								AlgUtil<MeshType>::get_vertex(*new_mesh, v1_index),
 								AlgUtil<MeshType>::get_vertex(*new_mesh, v2_index));
 				}
 			}
 			//after all vertices have been added to new mesh, we update the topology
-			tri::UpdateTopology<MeshType>::FaceFace(*new_mesh);
+			vcg::tri::UpdateTopology<MeshType>::FaceFace(*new_mesh);
 
 				   //now we free auxiliar mesh, set it to null, and swap the new mesh with the aux mesh
 				   //aux_mesh->free(); ???
@@ -345,7 +343,7 @@ public:
 			 * This lambda function receives a half edge position, and tries to relax the edge. It returns true if the edge
 			 * was relaxed, false otherwise. If the half edge is a border, it just returns false.
 			 */
-			auto relax_edge = [&](face::Pos<FaceType> hedge) {
+			auto relax_edge = [&](vcg::face::Pos<FaceType> hedge) {
 				if (hedge.IsBorder()) {
 					return false; //we don't relax the edge, so we return false
 				}
@@ -356,28 +354,28 @@ public:
 				aux1.FlipV();
 				FaceType* current_face = aux1.F();
 				VertexType* v1 = aux1.V(); //internal vertex
-				Point3f v1_cords = v1->P();
+				vcg::Point3f v1_cords = v1->P();
 				VertexType* mutual_v1 = hedge.V();
-				Point3f mutual_v1_cords = mutual_v1->P();
+				vcg::Point3f mutual_v1_cords = mutual_v1->P();
 				hedge.FlipV();
 				VertexType* mutual_v2 = hedge.V();
-				Point3f mutual_v2_cords = mutual_v2->P();
-				Point3f center_sphere = (mutual_v1_cords + mutual_v2_cords) / 2;
-				double radius = distance(center_sphere, mutual_v1_cords);
+				vcg::Point3f mutual_v2_cords = mutual_v2->P();
+				vcg::Point3f center_sphere = (mutual_v1_cords + mutual_v2_cords) / 2;
+				double radius = vcg::Distance(center_sphere, mutual_v1_cords);
 
 				hedge.FlipF();
 				hedge.FlipE();
 				hedge.FlipV();
 				VertexType* v2 = hedge.V(); //opposing vertex
-				Point3f v2_cords = v2->P();
+				vcg::Point3f v2_cords = v2->P();
 				FaceType* opposing_face = hedge.F();
 				//print_vertices(current_face);
 				//print_vertices(opposing_face);
 
 					   // we calculate the distances of the current edge and the relaxed edge
 					   // we relax the edge if the other edge is shorter than the current one
-				double non_mut_dist1 = distance(center_sphere, v1_cords);
-				double non_mut_dist2 = distance(center_sphere, v2_cords);
+				double non_mut_dist1 = vcg::Distance(center_sphere, v1_cords);
+				double non_mut_dist2 = vcg::Distance(center_sphere, v2_cords);
 
 				if ((non_mut_dist1 <= radius) && (non_mut_dist2 <= radius)) {
 					/*
@@ -407,7 +405,7 @@ public:
 					}
 					//opposing_face->SetV();
 					relaxed_edge = true;
-					tri::UpdateTopology<MeshType>::FaceFace(*new_mesh);
+					vcg::tri::UpdateTopology<MeshType>::FaceFace(*new_mesh);
 					return true;
 				}
 				else {
@@ -417,31 +415,31 @@ public:
 			};
 
 			for (auto fi = (*new_mesh).face.begin(); fi != (*new_mesh).face.end(); fi++) {
-				face::Pos<FaceType> hedge0(&*fi, 0);
+				vcg::face::Pos<FaceType> hedge0(&*fi, 0);
 				relax_edge(hedge0);
 
-				face::Pos<FaceType> hedge1(&*fi, 1);
+				vcg::face::Pos<FaceType> hedge1(&*fi, 1);
 				relax_edge(hedge1);
 
-				face::Pos<FaceType> hedge2(&*fi, 2);
+				vcg::face::Pos<FaceType> hedge2(&*fi, 2);
 				relax_edge(hedge2);
 			}
 			//returns true if any interior edge was relaxed, false otherwise
-			tri::UpdateTopology<MeshType>::FaceFace(*new_mesh);
+			vcg::tri::UpdateTopology<MeshType>::FaceFace(*new_mesh);
 			return relaxed_edge;
 		};
 
 
 		while (true) {
-			cout << aux_mesh->FN() << " " << aux_mesh->VN() << endl;
+			std::cout << aux_mesh->FN() << " " << aux_mesh->VN() << std::endl;
 			bool s2 = step2();
-			cout << new_mesh->FN() << " " << new_mesh->VN() << endl;
+			std::cout << new_mesh->FN() << " " << new_mesh->VN() << std::endl;
 
 				   //step 3
 			if (!s2) break; //no triangles were added, so the patching mesh is complete
 
 				   //step 5
-			while (step4()) cout << "cp0" << endl; //while interior edges are relaxed, keep doing step 4
+			while (step4()) std::cout << "cp0" << std::endl; //while interior edges are relaxed, keep doing step 4
 			//otherwise we go back to step 2 (begining of the loop)
 		}
 		return *new_mesh;

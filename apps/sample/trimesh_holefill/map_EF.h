@@ -3,7 +3,6 @@
 #include <unordered_map>
 #include <vector>
 #include "my_mesh.h"
-using namespace std;
 
 template<class MeshType>
 struct EdgeKey
@@ -49,7 +48,7 @@ public:
 	typedef typename MeshType::VertexType VertexType;
 	//could instead map edges to faces. This way from an edge on the border I can get its face
 	//this way, it maps starting vertex to end vertex of the edge, to the face on the border.
-	unordered_map<EdgeKey<MeshType>, FaceType*> edgeFaceMap;
+	std::unordered_map<EdgeKey<MeshType>, FaceType*> edgeFaceMap;
 
 	/*
 	* Adds a face to the vector associated with the vertex pointer. Makes sure that the face
@@ -66,7 +65,7 @@ public:
 
 		auto face = edgeFaceMap.find(EdgeKey<MeshType>(start, end));
 		if (face == edgeFaceMap.end()) {
-			cout << "couldnt find the face of this edge" << endl;
+			std::cout << "couldnt find the face of this edge" << std::endl;
 			return nullptr;
 		}
 		return face->second;
