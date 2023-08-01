@@ -4,7 +4,6 @@
 #include "refinement_alg.h"
 #include "fairing_alg.h"
 #include "alg_util.h"
-#include "map_EF.h"
 
 template<class MeshType>
 class HoleFill {
@@ -12,10 +11,10 @@ class HoleFill {
 public:
 	typedef typename MeshType::VertexType VertexType;
 	typedef typename MeshType::FaceType FaceType;
+	typedef typename vcg::face::Pos<FaceType> PosType;
 	static void my_hole_fill(MeshType& input_mesh, const char* output_mesh) {
 		vcg::tri::UpdateFlags<MeshType>::VertexClearV(input_mesh);
 		int border_loop_count = 0;
-		int border_vertex_count = 0;
 		std::vector<MeshType*> patched_holes;
 		// search for a boundary face
 		for (auto fi = input_mesh.face.begin(); fi != input_mesh.face.end(); ++fi) {
@@ -23,18 +22,18 @@ public:
 				if (vcg::face::IsBorder(*fi, i) && !(*fi).V(i)->IsV()) {// mark visited the vertices of the border edge
 					std::vector<VertexType*> borderVertices;
 					std::vector<FaceType*> borderFaces; //vector of faces on the border
-					EdgeFaceMap<MeshType> map;
 					(*fi).V(i)->SetV();
 					// now start a walk along the border
 					borderVertices.push_back((*fi).V0(i));
 					borderFaces.push_back(&*fi);
-					border_vertex_count += 1;
 					//++border_loop_count;
 					vcg::face::Pos<FaceType> start(&*fi, i);
 					vcg::face::Pos<FaceType> cur = start;
+					std::vector<PosType> vv;
 					do
 					{
 						assert(cur.IsBorder());
+						vv.push_back(cur);
 						do
 						{
 							cur.FlipE();
@@ -44,10 +43,8 @@ public:
 						VertexType* previous = cur.V();
 						cur.FlipV();
 						VertexType* current = cur.V();
-						map.add(previous, current, &*cur.F());
 						if (!cur.V()->IsV()) {
 							cur.V()->SetV();
-							border_vertex_count++;
 							borderVertices.push_back(cur.V());
 							borderFaces.push_back(&*cur.F());
 						}
@@ -59,7 +56,7 @@ public:
 
 					//Triangulation Algorithm
 					std::cout << "before triangulation" << std::endl;
-					TriangulationAlg<MeshType> ta(borderVertices, map);
+					TriangulationAlg<MeshType> ta(vv);
 					final_patch = &ta.algorithm();
 					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
