@@ -5,6 +5,8 @@
 #include <Eigen/Sparse>
 #include <Eigen/Dense>
 #include <Eigen/IterativeLinearSolvers>
+#include<Eigen/SparseLU>
+#include<Eigen/SparseQR>
 #include <unordered_set>
 
 template<class MeshType>
@@ -34,8 +36,10 @@ private:
 				   //we establish a halfedge position, on a face and vertex which are on the border
 			vcg::face::Pos<FaceType> start(bF[v_idx], bV[v_idx]);
 
-				   //the halfedge might be on the border, so we switch the edge in this case
-			if (start.IsBorder()) start.FlipE();
+			//the halfedge might be on the border, so we switch the edge in this case
+			if (start.IsBorder()) {
+				start.FlipE();
+			}
 
 			/*
 			 * In this cycle, we add all neighbor vertices which are not on the border, because the ones
@@ -47,7 +51,17 @@ private:
 				start.FlipF();
 				start.FlipE();
 			} while (!start.IsBorder());
+			//ret.push_back(start.VFlip());
 
+		}
+		if (v_idx == 9) {
+			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
+				if (fi->V(0) == v || fi->V(1) == v || fi->V(2) == v) fi->C() = vcg::Color4b::Blue;
+			}
+			std::cout << ret.size() << " <---------" << std::endl;
+			for (VertexType* v2 : ret) {
+				std::cout << v2->P().X() << ", " << v2->P().Y() << ", " << v2->P().Z() << "\n";
+			}
 		}
 		return ret;
 	}
@@ -69,9 +83,9 @@ public:
 		vcg::tri::UpdateTopology<MeshType>::VertexEdge(mesh);
 	}
 
-	float scale_dependent(VertexType* v1, VertexType* v2) {
-		return vcg::Distance(v1->P(), v2->P());
-	}
+	//float scale_dependent(VertexType* v1, VertexType* v2) {
+	//	return vcg::Distance(v1->P(), v2->P());
+	//}
 
 	float uniform(VertexType* v1, VertexType* v2) {
 		return 1;
@@ -81,25 +95,24 @@ public:
 	 * Gets a half edge on the edge whose umbrella operator needs to be calculated
 	 * Assumes the hedge has 2 adjacent triangles!!!
 	 */
-	float harmonic(vcg::face::Pos<FaceType> hedge) {
-		assert(hedge.F() != hedge.FFlip()); //ensures the hedge has 2 adjacent triangles
-		vcg::face::Pos<FaceType> vk1 = hedge;
-		vcg::face::Pos<FaceType> vk2 = hedge;
-		VertexType* vi = hedge.V();
-		VertexType* vj = hedge.VFlip();
-		vk1.FlipE();
-		vk1.FlipV();
-		float angle_vk1 = vk1.AngleRad(); //angle in radians
-		vk2.FlipF();
-		vk2.FlipE();
-		vk2.FlipV();
-		float angle_vk2 = vk2.AngleRad(); //angle in radians
-
-			   //cos and sin functions take radians
-		return (cos(angle_vk1) / sin(angle_vk1)) + (cos(angle_vk2) / sin(angle_vk2));
-		//cos(a) / sin(a) = cot(a)
-
-	}
+	//float harmonic(vcg::face::Pos<FaceType> hedge) {
+	//	assert(hedge.F() != hedge.FFlip()); //ensures the hedge has 2 adjacent triangles
+	//	vcg::face::Pos<FaceType> vk1 = hedge;
+	//	vcg::face::Pos<FaceType> vk2 = hedge;
+	//	VertexType* vi = hedge.V();
+	//	VertexType* vj = hedge.VFlip();
+	//	vk1.FlipE();
+	//	vk1.FlipV();
+	//	float angle_vk1 = vk1.AngleRad(); //angle in radians
+	//	vk2.FlipF();
+	//	vk2.FlipE();
+	//	vk2.FlipV();
+	//	float angle_vk2 = vk2.AngleRad(); //angle in radians
+	//
+	//		   //cos and sin functions take radians
+	//	return (cos(angle_vk1) / sin(angle_vk1)) + (cos(angle_vk2) / sin(angle_vk2));
+	//	//cos(a) / sin(a) = cot(a)
+	//}
 
 	/*
 	 * For each neighbor of v, sums to the result the value of cu(v, v_i)
@@ -165,7 +178,7 @@ public:
 
 	MeshType& algorithm() {
 
-		typedef Eigen::SparseMatrix<double> SparseMatrix;
+		typedef Eigen::SparseMatrix<double, Eigen::ColMajor> SparseMatrix;
 		typedef Eigen::VectorXd Vector;
 
 		int n = internal_verts.size();
@@ -179,10 +192,6 @@ public:
 			}
 		}
 
-			   //for (int i = 0; i < total_n - n; i++) {
-			   //	sparseMatrix.insert(i, i) = 1;
-			   //}
-
 		for (int j = 0; j < n; j++) {
 			int index = internal_verts[j];
 
@@ -190,12 +199,14 @@ public:
 
 			VertexType* v = &mesh.vert[index];
 			std::vector<VertexType*> v_i_vec = get_neighbors(v);
-			float cu_v = cu(v);
+			//float cu_v = cu(v);
+			float cu_v = v_i_vec.size();
 			for (VertexType* v_i : v_i_vec) {
-				float cu_v_i = cu(v_i);
+				//float cu_v_i = cu(v_i);
 				//curr_v is the vertex on the other end of the edge
 				assert(v_i != v);
 				std::vector<VertexType*> v_j_vec = get_neighbors(v_i);
+				float cu_v_i = v_j_vec.size();
 				for (VertexType* v_j : v_j_vec) {
 					int v_j_idx = AlgUtil<MeshType>::index_of_vertex(mesh, v_j);
 					float multiplier = (1 / -cu_v) * (1 / cu_v_i);
@@ -208,8 +219,8 @@ public:
 					}
 					else {
 						//the values of the vertices are added to the right side of the equation
-						vect.coeffRef(j, 0) = vect.coeffRef(j, 0) - multiplier * (double)v_j->P().X();
-						vect.coeffRef(j, 1) = vect.coeffRef(j, 1) - multiplier * (double)v_j->P().Y();
+						vect.coeffRef(j, 0) = vect.coeffRef(j, 0) - multiplier *(double)v_j->P().X();
+						vect.coeffRef(j, 1) = vect.coeffRef(j, 1) - multiplier *(double)v_j->P().Y();
 						vect.coeffRef(j, 2) = vect.coeffRef(j, 2) - multiplier * (double)v_j->P().Z();
 					}
 				}
@@ -220,44 +231,7 @@ public:
 				sparseMatrix.insert(j, i) = points[i];
 			}
 		}
-		/*for (int index : internal_verts) {
 
-			 vector<double> points(total_n, 0);
-
-			  VertexType* v = &mesh.vert[index];
-			  std::vector<VertexType*> v_i_vec = get_neighbors(v);
-			  float cu_v = cu(v);
-			  for (VertexType* v_i : v_i_vec) {
-				  float cu_v_i = cu(v_i);
-				  //curr_v is the vertex on the other end of the edge
-				  assert(v_i != v);
-				  std::vector<VertexType*> v_j_vec = get_neighbors(v_i);
-				  Point3f avg(0, 0, 0);
-				  int count = 0;
-				  for (VertexType* v_j : v_j_vec) {
-					  avg += v_j->P(); count++;
-					  int v_j_idx = index_of_vertex(mesh, v_j);
-					  float multiplier = (1 / -cu_v) * (1 / cu_v_i);
-					  //if the vertex shouldnt be modified (is on the border, or doesnt belong to the mesh), then
-					  // the value to be added to the vertex is set to 0 (it isn't added to the left side of the equation)
-					  if (v_j_idx >= bv_n) {
-						  //the vertex v_j is not on the border
-						  points[v_j_idx] += multiplier;
-					  }
-					  else {
-						  //the values of the vertices are added to the right side of the equation
-						  vect.coeffRef(index, 0) = vect.coeffRef(index, 0) - multiplier * (double)v_j->P().X();
-						  vect.coeffRef(index, 1) = vect.coeffRef(index, 1) - multiplier * (double)v_j->P().Y();
-						  vect.coeffRef(index, 2) = vect.coeffRef(index, 2) - multiplier * (double)v_j->P().Z();
-					  }
-				  }
-				  avg = avg / count;
-			  }
-			  points[index] += 1;
-			  for (int i = 0; i < mesh.vert.size(); i++) {
-				  sparseMatrix.insert(index, i) = points[i];
-			  }
-		  }*/
 		std::cout << "printing linear system! " << std::endl;
 		for (int i = 0; i < n; i++) {
 			//left side of the equation
@@ -272,19 +246,14 @@ public:
 			std::cout << std::endl;
 		}
 
-		//cout << "printing vect! " << endl;
-		//for (int i = 0; i < n; i++) {
-		//	for (int col = 0; col < 3; col++) {
-		//		cout << vect.coeffRef(i, col) << " ";
-		//	}
-		//	cout << endl;
-		//}
-		//cout << endl;
-
-		Eigen::ConjugateGradient<SparseMatrix> solver;
-		solver.setTolerance(0);
-		solver.setMaxIterations(100);
-
+		//Eigen::ConjugateGradient<SparseMatrix, Eigen::Lower | Eigen::Upper> solver;
+		//solver.setTolerance(0);
+		//solver.setMaxIterations(100);
+		Eigen::SparseLU<SparseMatrix, Eigen::COLAMDOrdering<int>> solver;
+		//Eigen::SparseQR<SparseMatrix, Eigen::COLAMDOrdering<int>> solver;
+		//Eigen::BiCGSTAB<SparseMatrix> solver;
+		
+		sparseMatrix.makeCompressed();
 		solver.compute(sparseMatrix);
 		if (solver.info() != Eigen::Success) {
 			// We calculate the information and check if it is a success or not
@@ -298,10 +267,20 @@ public:
 			std::cout << "error solving solution" << std::endl;
 			//return mesh;
 		}
+		//std::cout << "#iterations:     " << solver.iterations() << std::endl;
+		//std::cout << "estimated error: " << solver.error() << std::endl;
+
+		std::cout << "printing solution:\n";
+		for (int i = 0; i < n; i++) {
+			//left side of the equation
+			for (int j = 0; j < 3; j++) {
+				std::cout << sol.coeffRef(i, j) << " ";
+			}
+			std::cout << std::endl;
+		}
 
 		for (int i = 0; i < internal_verts.size(); i++) {
 			VertexType* v = &mesh.vert[i+bv_n];
-			//v->P() = v->P() + Point3f(x(i), y(i), z(i));
 			v->P() = vcg::Point3f(sol.coeffRef(i, 0), sol.coeffRef(i, 1), sol.coeffRef(i, 2));
 		}
 
