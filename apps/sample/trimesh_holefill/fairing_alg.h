@@ -5,7 +5,6 @@
 #include <Eigen/IterativeLinearSolvers>
 #include<Eigen/SparseLU>
 #include<Eigen/SparseQR>
-#include <unordered_set>
 
 template<class MeshType>
 class FairingAlg {
@@ -20,15 +19,16 @@ private:
 	 * Returns a vector with the neighbors vertices of v
 	 * v must belong to the mesh
 	 * But the function might returns vertices that don't belong to the mesh (in case v is on the border)
+	 * 
+	 * Assumes there is VF Adjacency in the mesh
 	 *
-	 * Assumes there is VV adjecency on the mesh
 	 */
 	std::vector<VertexType*> get_neighbors(VertexType* v) {
 		//int v_idx = AlgUtil<MeshType>::index_of_vertex(mesh, v);
 		int v_idx = vcg::tri::Index(mesh, v);
 		assert(v_idx >= 0); //makes sure v belongs to mesh
 		std::vector<VertexType*> ret;
-		vcg::edge::VVStarVE(v, ret);
+		vcg::face::VVStarVF<FaceType>(v, ret);
 		if (v_idx < bv_n && v_idx >= 0) {
 			//vertex is on the border. We also need to add the vertices on the surrounding mesh.
 
@@ -42,7 +42,7 @@ private:
 
 			/*
 			 * In this cycle, we add all neighbor vertices which are not on the border, because the ones
-			 * on the border were already added in vcg::edge::VVStarVE(v, ret);
+			 * on the border were already added in vcg::edge::VVStarVF(v, ret);
 			 * So we don't want to add duplicate vertices (they are on different meshes, but they are on the same position).
 			 */
 			do {
@@ -50,7 +50,6 @@ private:
 				start.FlipF();
 				start.FlipE();
 			} while (!start.IsBorder());
-			//ret.push_back(start.VFlip());
 
 		}
 		return ret;
@@ -65,12 +64,7 @@ public:
 		for (int i = 0; i < mesh.VN(); i++) {
 			if (i >= bv_n) internal_verts.push_back(i); //if the vertex is not on the border, add to internal_verts
 		}
-		for (int idx : internal_verts) {
-			std::cout << idx << " ";
-		}
-		std::cout << std::endl;
-		vcg::tri::UpdateTopology<MeshType>::AllocateEdge(mesh);
-		vcg::tri::UpdateTopology<MeshType>::VertexEdge(mesh);
+		vcg::tri::UpdateTopology<MeshType>::VertexFace(mesh);
 	}
 
 	//float scale_dependent(VertexType* v1, VertexType* v2) {
@@ -108,63 +102,63 @@ public:
 	 * For each neighbor of v, sums to the result the value of cu(v, v_i)
 	 * For the uniform operator, cu(v) just returns the number of neighbors of v
 	 */
-	float cu(VertexType* v) {
-		assert(!v->IsB());
-		float cu_v = 0;
-		std::vector<VertexType*> vert_vec;
-		vcg::edge::VVStarVE(v, vert_vec);
-		if (vert_vec.size() == 0) std::cout << "is empty" << std::endl;
+	//float cu(VertexType* v) {
+	//	assert(!v->IsB());
+	//	float cu_v = 0;
+	//	std::vector<VertexType*> vert_vec;
+	//	vcg::face::VVStarVF(v, vert_vec);
+	//	if (vert_vec.size() == 0) std::cout << "is empty" << std::endl;
+	//
+	//	for (VertexType* curr_v : vert_vec) {
+	//		assert(curr_v != v);
+	//		cu_v += uniform(v, curr_v);
+	//	}
+	//	return cu_v;
+	//}
 
-		for (VertexType* curr_v : vert_vec) {
-			assert(curr_v != v);
-			cu_v += uniform(v, curr_v);
-		}
-		return cu_v;
-	}
+	//vcg::Point3f U_cu(VertexType* v) {
+	//	assert(!v->IsB());
+	//
+	//		   //cu(v) calculation
+	//	float cu_v = cu(v);
+	//
+	//	std::vector<VertexType*> vert_vec;
+	//	vcg::face::VVStarVF(v, vert_vec);
+	//
+	//	vcg::Point3f ret(0, 0, 0);
+	//	for (VertexType* curr_v : vert_vec) {
+	//		//curr_v is the vertex on the other end of the edge
+	//		assert(curr_v != v);
+	//		ret += uniform(v, curr_v) * curr_v->P();
+	//		//cout << "cords - " << curr_v->P().X() << ", " << curr_v->P().X() << ", " << curr_v->P().X() << endl;
+	//	}
+	//	//cout << endl;
+	//
+	//	ret *= (1 / cu_v);
+	//	ret += -(v->P());
+	//	return ret;
+	//}
 
-	vcg::Point3f U_cu(VertexType* v) {
-		assert(!v->IsB());
-
-			   //cu(v) calculation
-		float cu_v = cu(v);
-
-		std::vector<VertexType*> vert_vec;
-		vcg::edge::VVStarVE(v, vert_vec);
-
-		vcg::Point3f ret(0, 0, 0);
-		for (VertexType* curr_v : vert_vec) {
-			//curr_v is the vertex on the other end of the edge
-			assert(curr_v != v);
-			ret += uniform(v, curr_v) * curr_v->P();
-			//cout << "cords - " << curr_v->P().X() << ", " << curr_v->P().X() << ", " << curr_v->P().X() << endl;
-		}
-		//cout << endl;
-
-		ret *= (1 / cu_v);
-		ret += -(v->P());
-		return ret;
-	}
-
-	vcg::Point3f U2_cu(VertexType* v) {
-		assert(!v->IsB());
-		float cu_v = cu(v);
-		vcg::Point3f u_cu_v = U_cu(v);
-
-		std::vector<VertexType*> vert_vec;
-		vcg::edge::VVStarVE(v, vert_vec);
-
-		vcg::Point3f ret(0, 0, 0);
-		for (VertexType* curr_v : vert_vec) {
-			//curr_v is the vertex on the other end of the edge
-			assert(curr_v != v);
-			ret += (uniform(v, curr_v) * U_cu(curr_v));
-		}
-		ret *= (1 / cu_v);
-
-		ret = ret - u_cu_v;
-
-		return ret;
-	}
+	//vcg::Point3f U2_cu(VertexType* v) {
+	//	assert(!v->IsB());
+	//	float cu_v = cu(v);
+	//	vcg::Point3f u_cu_v = U_cu(v);
+	//
+	//	std::vector<VertexType*> vert_vec;
+	//	vcg::face::VVStarVF(v, vert_vec);
+	//
+	//	vcg::Point3f ret(0, 0, 0);
+	//	for (VertexType* curr_v : vert_vec) {
+	//		//curr_v is the vertex on the other end of the edge
+	//		assert(curr_v != v);
+	//		ret += (uniform(v, curr_v) * U_cu(curr_v));
+	//	}
+	//	ret *= (1 / cu_v);
+	//
+	//	ret = ret - u_cu_v;
+	//
+	//	return ret;
+	//}
 
 	MeshType& algorithm() {
 
