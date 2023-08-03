@@ -1,6 +1,4 @@
 #pragma once
-#include "my_mesh.h"
-#include "alg_util.h"
 #include <vector>
 #include <unordered_map>
 #include <cmath>
@@ -38,13 +36,13 @@ public:
 			auto v0 = fi->V(0);
 			auto v1 = fi->V(1);
 			auto v2 = fi->V(2);
-			int v0_index = AlgUtil<MeshType>::index_of_vertex(m, v0);
-			int v1_index = AlgUtil<MeshType>::index_of_vertex(m, v1);
-			int v2_index = AlgUtil<MeshType>::index_of_vertex(m, v2);
+			int v0_index = vcg::tri::Index(m, v0);
+			int v1_index = vcg::tri::Index(m, v1);
+			int v2_index = vcg::tri::Index(m, v2);
 			vcg::tri::Allocator<MeshType>::AddFace(*aux_mesh,
-						AlgUtil<MeshType>::get_vertex(*aux_mesh, v0_index),
-						AlgUtil<MeshType>::get_vertex(*aux_mesh, v1_index),
-						AlgUtil<MeshType>::get_vertex(*aux_mesh, v2_index));
+						&(aux_mesh->vert.begin()[v0_index]),
+						&(aux_mesh->vert.begin()[v1_index]),
+						&(aux_mesh->vert.begin()[v2_index]));
 		}
 		vcg::tri::UpdateTopology<MeshType>::FaceFace(*aux_mesh);
 	}
@@ -221,9 +219,9 @@ public:
 				auto v1 = fi->V(1);
 				auto v2 = fi->V(2);
 
-				int v0_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v0);
-				int v1_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v1);
-				int v2_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v2);
+				int v0_index = vcg::tri::Index(*aux_mesh, v0);
+				int v1_index = vcg::tri::Index(*aux_mesh, v1);
+				int v2_index = vcg::tri::Index(*aux_mesh, v2);
 
 				vcg::Point3f centroid_cords = (v0->P() + v1->P() + v2->P()) / 3;
 				double scale_v0 = scale[v0_index];
@@ -236,7 +234,7 @@ public:
 					vcg::Point3f dest = v->P();
 					double dist = vcg::Distance(centroid_cords, dest);
 					double value = alpha * dist;
-					if (value > scale_centroid && value > scale[AlgUtil<MeshType>::index_of_vertex(*aux_mesh, v)]) return true;
+					if (value > scale_centroid && value > scale[vcg::tri::Index(*aux_mesh, v)]) return true;
 					return false;
 				};
 
@@ -252,10 +250,10 @@ public:
 					VertexType* mutual_vert2 = aux2.V();
 					vcg::Point3f mutual_vert2_cords = mutual_vert2->P();
 					double current_edge_dist = vcg::Distance(mutual_vert1_cords, mutual_vert2_cords);
-					int mutual_vert1_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, mutual_vert1);
-					int mutual_vert2_index = AlgUtil<MeshType>::index_of_vertex(*aux_mesh, mutual_vert2);
+					int mutual_vert1_index = vcg::tri::Index(*aux_mesh, mutual_vert1);
+					int mutual_vert2_index = vcg::tri::Index(*aux_mesh, mutual_vert2);
 					//int centroid_index = index_of_vertex(*new_mesh, centroid);
-					vcg::tri::Allocator<MeshType>::AddFace(*new_mesh, centroid, AlgUtil<MeshType>::get_vertex(*new_mesh, mutual_vert1_index), AlgUtil<MeshType>::get_vertex(*new_mesh, mutual_vert2_index));
+					vcg::tri::Allocator<MeshType>::AddFace(*new_mesh, centroid, &(new_mesh->vert.begin()[mutual_vert1_index]), &(new_mesh->vert.begin()[mutual_vert2_index]));
 					return;
 					//if (hedge.IsBorder()) {
 					//	//if the half edge is on the border, this means that the adjacent triangle is
@@ -312,9 +310,9 @@ public:
 				else {
 					//otherwise we just add this triangle to the new mesh
 					vcg::tri::Allocator<MeshType>::AddFace(*new_mesh,
-								AlgUtil<MeshType>::get_vertex(*new_mesh, v0_index),
-								AlgUtil<MeshType>::get_vertex(*new_mesh, v1_index),
-								AlgUtil<MeshType>::get_vertex(*new_mesh, v2_index));
+								&(new_mesh->vert.begin()[v0_index]),
+								&(new_mesh->vert.begin()[v1_index]),
+								&(new_mesh->vert.begin()[v2_index]));
 				}
 			}
 			//after all vertices have been added to new mesh, we update the topology

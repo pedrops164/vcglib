@@ -1,11 +1,9 @@
 
 #pragma once
 
-#include "my_mesh.h"
 #include <unordered_map>
 #include <vector>
 #include <vcg/complex/algorithms/hole.h>
-#include "alg_util.h"
 
 template<class MeshType>
 class TriangulationAlg {

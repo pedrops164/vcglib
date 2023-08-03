@@ -1,6 +1,4 @@
 #pragma once
-#include "my_mesh.h"
-#include "alg_util.h"
 #include <math.h>
 #include <Eigen/Sparse>
 #include <Eigen/Dense>
@@ -26,11 +24,12 @@ private:
 	 * Assumes there is VV adjecency on the mesh
 	 */
 	std::vector<VertexType*> get_neighbors(VertexType* v) {
-		int v_idx = AlgUtil<MeshType>::index_of_vertex(mesh, v);
+		//int v_idx = AlgUtil<MeshType>::index_of_vertex(mesh, v);
+		int v_idx = vcg::tri::Index(mesh, v);
 		assert(v_idx >= 0); //makes sure v belongs to mesh
 		std::vector<VertexType*> ret;
 		vcg::edge::VVStarVE(v, ret);
-		if (v_idx < bv_n) {
+		if (v_idx < bv_n && v_idx >= 0) {
 			//vertex is on the border. We also need to add the vertices on the surrounding mesh.
 
 				   //we establish a halfedge position, on a face and vertex which are on the border
@@ -53,15 +52,6 @@ private:
 			} while (!start.IsBorder());
 			//ret.push_back(start.VFlip());
 
-		}
-		if (v_idx == 9) {
-			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-				if (fi->V(0) == v || fi->V(1) == v || fi->V(2) == v) fi->C() = vcg::Color4b::Blue;
-			}
-			std::cout << ret.size() << " <---------" << std::endl;
-			for (VertexType* v2 : ret) {
-				std::cout << v2->P().X() << ", " << v2->P().Y() << ", " << v2->P().Z() << "\n";
-			}
 		}
 		return ret;
 	}
@@ -208,12 +198,12 @@ public:
 				std::vector<VertexType*> v_j_vec = get_neighbors(v_i);
 				float cu_v_i = v_j_vec.size();
 				for (VertexType* v_j : v_j_vec) {
-					int v_j_idx = AlgUtil<MeshType>::index_of_vertex(mesh, v_j);
+					int v_j_idx = vcg::tri::Index(mesh, v_j);
 					float multiplier = (1 / -cu_v) * (1 / cu_v_i);
 					//if the vertex shouldnt be modified (is on the border, or doesnt belong to the mesh), then
 					// the value to be added to the vertex is set to 0 (it isn't added to the left side of the equation)
 					//if (v_j != v)
-					if (v_j_idx >= bv_n) {
+					if (v_j_idx >= bv_n && v_j_idx < mesh.VN()) {
 						//the vertex v_j is not on the border
 						points[v_j_idx-bv_n] += multiplier;
 					}

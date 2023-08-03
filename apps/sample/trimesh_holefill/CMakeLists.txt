@@ -3,9 +3,7 @@ project(trimesh_holefill)
 
 if (VCG_HEADER_ONLY)
 	set(SOURCES
-		alg_util.h
 		fairing_alg.h
-		my_mesh.h
 		refinement_alg.h
 		triangulation_alg.h
 		trimesh_holefill.cpp

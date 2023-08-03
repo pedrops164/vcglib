@@ -32,10 +32,20 @@ This file contain a minimal example of the library, showing how to load a mesh a
 #include<vcg/complex/complex.h>
 #include<wrap/io_trimesh/import_off.h>
 #include<wrap/io_trimesh/export_off.h>
-#include "my_mesh.h"
-#include "main.h"
+#include "trimesh_holefill.h"
 #include <iostream>
 #include <iomanip>
+
+class MyVertex; class MyEdge; class MyFace;
+struct MyUsedTypes : public vcg::UsedTypes<vcg::Use<MyVertex>   ::AsVertexType,
+    vcg::Use<MyEdge>     ::AsEdgeType,
+    vcg::Use<MyFace>     ::AsFaceType> {};
+
+class MyVertex : public vcg::Vertex< MyUsedTypes, vcg::vertex::Coord3f, vcg::vertex::Normal3f, vcg::face::Color4b, vcg::vertex::BitFlags, vcg::vertex::VEAdj> {};
+class MyFace : public vcg::Face<   MyUsedTypes, vcg::face::FFAdj, vcg::face::VertexRef, vcg::face::Color4b, vcg::face::BitFlags > {};
+class MyEdge : public vcg::Edge<   MyUsedTypes, vcg::edge::VEAdj, vcg::edge::VertexRef> {};
+
+class MyMesh : public vcg::tri::TriMesh< std::vector<MyVertex>, std::vector<MyFace>, std::vector<MyEdge>  > {};
 
 int main( int argc, char **argv )
 {

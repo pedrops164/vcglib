@@ -1,9 +1,7 @@
-#include "my_mesh.h"
 
 #include "triangulation_alg.h"
 #include "refinement_alg.h"
 #include "fairing_alg.h"
-#include "alg_util.h"
 
 template<class MeshType>
 class HoleFill {
@@ -58,7 +56,8 @@ public:
 					std::cout << "before triangulation" << std::endl;
 					TriangulationAlg<MeshType> ta(vv);
 					final_patch = &ta.algorithm();
-					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
+					cpy = new MeshType();
+					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
 					vcg::tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + std::to_string(border_loop_count) + "triangulation.off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
@@ -67,7 +66,8 @@ public:
 					std::cout << "before refining" << std::endl;
 					RefinementAlg<MeshType> ra(*final_patch, borderVertices, borderFaces);
 					final_patch = &ra.algorithm();
-					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
+					cpy = new MeshType();
+					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
 					vcg::tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + std::to_string(border_loop_count) + "refined.off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
@@ -75,7 +75,8 @@ public:
 					std::cout << "before fairing" << std::endl;
 					FairingAlg<MeshType> fa(*final_patch, borderVertices, borderFaces);
 					final_patch = &fa.algorithm();
-					cpy = AlgUtil<MeshType>::mesh_copy(input_mesh);
+					cpy = new MeshType();
+					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, input_mesh);
 					vcg::tri::Append<MeshType, MeshType>::Mesh(*cpy, *final_patch);
 					vcg::tri::io::ExporterOFF<MeshType>::Save(*cpy, ("hole" + std::to_string(border_loop_count) + "faired.off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
