@@ -42,7 +42,7 @@ struct MyUsedTypes : public vcg::UsedTypes<vcg::Use<MyVertex>   ::AsVertexType,
     vcg::Use<MyFace>     ::AsFaceType> {};
 
 class MyVertex : public vcg::Vertex< MyUsedTypes, vcg::vertex::Coord3f, vcg::vertex::Normal3f, vcg::face::Color4b, vcg::vertex::BitFlags, vcg::vertex::VFAdj> {};
-class MyFace : public vcg::Face<   MyUsedTypes, vcg::face::FFAdj, vcg::face::VFAdj, vcg::face::VertexRef, vcg::face::Color4b, vcg::face::BitFlags > {};
+class MyFace : public vcg::Face<   MyUsedTypes, vcg::face::Normal3f, vcg::face::FFAdj, vcg::face::VFAdj, vcg::face::VertexRef, vcg::face::Color4b, vcg::face::BitFlags > {};
 class MyEdge : public vcg::Edge<   MyUsedTypes, vcg::edge::VertexRef> {};
 
 class MyMesh : public vcg::tri::TriMesh< std::vector<MyVertex>, std::vector<MyFace>, std::vector<MyEdge>  > {};
@@ -67,7 +67,8 @@ int main( int argc, char **argv )
     
     vcg::tri::RequirePerVertexNormal(m);
     vcg::tri::UpdateTopology<MyMesh>::FaceFace(m);
-    HoleFill<MyMesh>::my_hole_fill(m, "hole_filled.off");
+    MyMesh patching_mesh;
+    HoleFill<MyMesh>::my_hole_fill(m, patching_mesh, "hole_filled.off");
     return 0;
 }
 

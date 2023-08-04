@@ -12,7 +12,7 @@ class TriangulationAlg {
 	typedef typename vcg::face::Pos<FaceType> PosType;
 	typedef typename vcg::tri::Hole<MeshType>::Weight Weight;
 private:
-	MeshType mesh;
+	MeshType& mesh;
 	std::vector<std::vector<Weight>> w_matrix;
 	std::vector<std::vector<int>> delta_matrix;
 	std::vector<PosType> vv;
@@ -36,7 +36,7 @@ private:
 	}
 public:
 
-	TriangulationAlg(std::vector<PosType> vv): vv(vv) {
+	TriangulationAlg(MeshType& mesh, std::vector<PosType> vv): mesh(mesh), vv(vv) {
 		vcg::tri::RequirePerVertexNormal(mesh);
 		size_t n = vv.size();
 		auto ptr = vcg::tri::Allocator<MeshType>::AddVertices(mesh, n);
@@ -48,7 +48,7 @@ public:
 	}
 
 	//runs the triangulation algorithm
-	MeshType& algorithm() {
+	void algorithm() {
 		//hole size
 		int n = vv.size();
 
@@ -100,8 +100,6 @@ public:
 		// In this case we are going to add the triangles to the mesh
 		trace(0, n - 1);
 		vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
-
-		return mesh;
 	}
 };
 

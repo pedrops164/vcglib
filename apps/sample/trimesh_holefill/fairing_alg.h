@@ -160,7 +160,7 @@ public:
 	//	return ret;
 	//}
 
-	MeshType& algorithm() {
+	void algorithm() {
 
 		typedef Eigen::SparseMatrix<double, Eigen::ColMajor> SparseMatrix;
 		typedef Eigen::VectorXd Vector;
@@ -267,8 +267,6 @@ public:
 			VertexType* v = &mesh.vert[i+bv_n];
 			v->P() = vcg::Point3f(sol.coeffRef(i, 0), sol.coeffRef(i, 1), sol.coeffRef(i, 2));
 		}
-
-		return mesh;
 	}
 
 };
