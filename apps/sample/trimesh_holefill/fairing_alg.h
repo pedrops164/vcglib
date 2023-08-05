@@ -29,10 +29,13 @@ private:
 		assert(v_idx >= 0); //makes sure v belongs to mesh
 		std::vector<VertexType*> ret;
 		vcg::face::VVStarVF<FaceType>(v, ret);
-		if (v_idx < bv_n && v_idx >= 0) {
+		//if (v_idx < bv_n && v_idx >= 0) {
+		if (v->IsB()) {
 			//vertex is on the border. We also need to add the vertices on the surrounding mesh.
 
 				   //we establish a halfedge position, on a face and vertex which are on the border
+			assert(bV[v_idx] != v); //assert that they are different vertices
+			assert(bV[v_idx]->P() == v->P()); //assert that the coordinates are the same
 			vcg::face::Pos<FaceType> start(bF[v_idx], bV[v_idx]);
 
 			//the halfedge might be on the border, so we switch the edge in this case
@@ -65,14 +68,19 @@ public:
 			if (i >= bv_n) internal_verts.push_back(i); //if the vertex is not on the border, add to internal_verts
 		}
 		vcg::tri::UpdateTopology<MeshType>::VertexFace(mesh);
+		vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
+		vcg::tri::UpdateFlags<MeshType>::FaceBorderFromFF(mesh);
 	}
 
-	//float scale_dependent(VertexType* v1, VertexType* v2) {
-	//	return vcg::Distance(v1->P(), v2->P());
-	//}
-
-	float uniform(VertexType* v1, VertexType* v2) {
+	static float umbrella_operator(VertexType* v1, VertexType* v2) {
+		// uniform umbrella-operator
 		return 1;
+
+		// scale-dependent umbrella-operator
+		//return vcg::Distance(v1->P(), v2->P());
+
+		//harmonic umbrella-operator
+		// ......
 	}
 
 	/*
@@ -102,63 +110,15 @@ public:
 	 * For each neighbor of v, sums to the result the value of cu(v, v_i)
 	 * For the uniform operator, cu(v) just returns the number of neighbors of v
 	 */
-	//float cu(VertexType* v) {
-	//	assert(!v->IsB());
-	//	float cu_v = 0;
-	//	std::vector<VertexType*> vert_vec;
-	//	vcg::face::VVStarVF(v, vert_vec);
-	//	if (vert_vec.size() == 0) std::cout << "is empty" << std::endl;
-	//
-	//	for (VertexType* curr_v : vert_vec) {
-	//		assert(curr_v != v);
-	//		cu_v += uniform(v, curr_v);
-	//	}
-	//	return cu_v;
-	//}
-
-	//vcg::Point3f U_cu(VertexType* v) {
-	//	assert(!v->IsB());
-	//
-	//		   //cu(v) calculation
-	//	float cu_v = cu(v);
-	//
-	//	std::vector<VertexType*> vert_vec;
-	//	vcg::face::VVStarVF(v, vert_vec);
-	//
-	//	vcg::Point3f ret(0, 0, 0);
-	//	for (VertexType* curr_v : vert_vec) {
-	//		//curr_v is the vertex on the other end of the edge
-	//		assert(curr_v != v);
-	//		ret += uniform(v, curr_v) * curr_v->P();
-	//		//cout << "cords - " << curr_v->P().X() << ", " << curr_v->P().X() << ", " << curr_v->P().X() << endl;
-	//	}
-	//	//cout << endl;
-	//
-	//	ret *= (1 / cu_v);
-	//	ret += -(v->P());
-	//	return ret;
-	//}
-
-	//vcg::Point3f U2_cu(VertexType* v) {
-	//	assert(!v->IsB());
-	//	float cu_v = cu(v);
-	//	vcg::Point3f u_cu_v = U_cu(v);
-	//
-	//	std::vector<VertexType*> vert_vec;
-	//	vcg::face::VVStarVF(v, vert_vec);
-	//
-	//	vcg::Point3f ret(0, 0, 0);
-	//	for (VertexType* curr_v : vert_vec) {
-	//		//curr_v is the vertex on the other end of the edge
-	//		assert(curr_v != v);
-	//		ret += (uniform(v, curr_v) * U_cu(curr_v));
-	//	}
-	//	ret *= (1 / cu_v);
-	//
-	//	ret = ret - u_cu_v;
-	//
-	//	return ret;
-	//}
+	float cu(VertexType* v) {
+		//assert(!v->IsB());
+		float cu_v = 0;
+		std::vector<VertexType*> neighbors = get_neighbors(v);
+		for (VertexType* v_i : neighbors) {
+			cu_v += umbrella_operator(v, v_i);
+		}
+		return cu_v;
+	}
 
 	void algorithm() {
 
@@ -183,17 +143,27 @@ public:
 
 			VertexType* v = &mesh.vert[index];
 			std::vector<VertexType*> v_i_vec = get_neighbors(v);
-			//float cu_v = cu(v);
-			float cu_v = v_i_vec.size();
+			float cu_v = cu(v);
 			for (VertexType* v_i : v_i_vec) {
-				//float cu_v_i = cu(v_i);
+				int v_i_idx = vcg::tri::Index(mesh, v_i);
 				//curr_v is the vertex on the other end of the edge
+				float value1 = 2 * (1 / -cu_v) * umbrella_operator(v, v_i);
 				assert(v_i != v);
+				if (v_i_idx >= bv_n && v_i_idx < mesh.VN()) {
+					//the vertex v_j is not on the border
+					points[v_i_idx - bv_n] += value1;
+				}
+				else {
+					//the values of the vertices are added to the right side of the equation
+					vect.coeffRef(j, 0) = vect.coeffRef(j, 0) - value1 * (double)v_i->P().X();
+					vect.coeffRef(j, 1) = vect.coeffRef(j, 1) - value1 * (double)v_i->P().Y();
+					vect.coeffRef(j, 2) = vect.coeffRef(j, 2) - value1 * (double)v_i->P().Z();
+				}
 				std::vector<VertexType*> v_j_vec = get_neighbors(v_i);
-				float cu_v_i = v_j_vec.size();
+				float cu_v_i = cu(v_i);
 				for (VertexType* v_j : v_j_vec) {
 					int v_j_idx = vcg::tri::Index(mesh, v_j);
-					float multiplier = (1 / -cu_v) * (1 / cu_v_i);
+					float multiplier = umbrella_operator(v_i, v_j) / (cu_v * cu_v_i);
 					//if the vertex shouldnt be modified (is on the border, or doesnt belong to the mesh), then
 					// the value to be added to the vertex is set to 0 (it isn't added to the left side of the equation)
 					//if (v_j != v)
@@ -216,26 +186,22 @@ public:
 			}
 		}
 
-		std::cout << "printing linear system! " << std::endl;
-		for (int i = 0; i < n; i++) {
-			//left side of the equation
-			for (int j = 0; j < n; j++) {
-				std::cout << sparseMatrix.coeffRef(i, j) << " ";
-			}
-			std::cout << "| ";
-			//right side of the equation
-			for (int col = 0; col < 3; col++) {
-				std::cout << vect.coeffRef(i, col) << " ";
-			}
-			std::cout << std::endl;
-		}
+		//std::cout << "printing linear system! " << std::endl;
+		//for (int i = 0; i < n; i++) {
+		//	//left side of the equation
+		//	for (int j = 0; j < n; j++) {
+		//		std::cout << sparseMatrix.coeffRef(i, j) << " ";
+		//	}
+		//	std::cout << "| ";
+		//	//right side of the equation
+		//	for (int col = 0; col < 3; col++) {
+		//		std::cout << vect.coeffRef(i, col) << " ";
+		//	}
+		//	std::cout << std::endl;
+		//}
 
 		//Eigen::ConjugateGradient<SparseMatrix, Eigen::Lower | Eigen::Upper> solver;
-		//solver.setTolerance(0);
-		//solver.setMaxIterations(100);
 		Eigen::SparseLU<SparseMatrix, Eigen::COLAMDOrdering<int>> solver;
-		//Eigen::SparseQR<SparseMatrix, Eigen::COLAMDOrdering<int>> solver;
-		//Eigen::BiCGSTAB<SparseMatrix> solver;
 		
 		sparseMatrix.makeCompressed();
 		solver.compute(sparseMatrix);
@@ -251,17 +217,15 @@ public:
 			std::cout << "error solving solution" << std::endl;
 			//return mesh;
 		}
-		//std::cout << "#iterations:     " << solver.iterations() << std::endl;
-		//std::cout << "estimated error: " << solver.error() << std::endl;
 
-		std::cout << "printing solution:\n";
-		for (int i = 0; i < n; i++) {
-			//left side of the equation
-			for (int j = 0; j < 3; j++) {
-				std::cout << sol.coeffRef(i, j) << " ";
-			}
-			std::cout << std::endl;
-		}
+		//std::cout << "printing solution:\n";
+		//for (int i = 0; i < n; i++) {
+		//	//left side of the equation
+		//	for (int j = 0; j < 3; j++) {
+		//		std::cout << sol.coeffRef(i, j) << " ";
+		//	}
+		//	std::cout << std::endl;
+		//}
 
 		for (int i = 0; i < internal_verts.size(); i++) {
 			VertexType* v = &mesh.vert[i+bv_n];
