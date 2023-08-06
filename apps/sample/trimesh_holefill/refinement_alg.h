@@ -79,7 +79,7 @@ public:
 			bool triangles_added = false;
 		
 			std::vector<int> faces_indices;
-			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); fi++) {
+			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); fi++) if (!fi->IsD()) {
 				VertexType* v0 = fi->V(0);
 				VertexType* v1 = fi->V(1);
 				VertexType* v2 = fi->V(2);
@@ -118,17 +118,15 @@ public:
 				}
 			}
 		
-			//for each face to be split, we add two faces to the mesh
-			// because the each face is modified to be one of the three new triangles, and the other two
-			// are added.
-			auto f_p = vcg::tri::Allocator<MeshType>::AddFaces(mesh, faces_indices.size() * 2);
+			//for each face to be split, we add three faces to the mesh, and we delete the current one
+			auto f_p = vcg::tri::Allocator<MeshType>::AddFaces(mesh, faces_indices.size() * 3);
 		
 			//for each face to be added, one vertex is added (the centroid of each face)
 			auto v_p = vcg::tri::Allocator<MeshType>::AddVertices(mesh, faces_indices.size());
 		
 			for (int face_idx : faces_indices) {
-				//FaceType* fi = *f;
 				FaceType* fi = &(mesh.face[face_idx]);
+				vcg::tri::Allocator<MeshType>::DeleteFace(mesh, *fi); //deletes old face
 				
 				VertexType* v0 = fi->V(0);
 				VertexType* v1 = fi->V(1);
@@ -145,20 +143,28 @@ public:
 				v_p++;
 				centroid->P() = centroid_cords;
 		
-				fi->V(2) = centroid;
-				assert(v2 != fi->V(2)); //teste
+				FaceType* new_face0 = &*f_p;
+				f_p++;
 				FaceType* new_face1 = &*f_p;
 				f_p++;
 				FaceType* new_face2 = &*f_p;
 				f_p++;
+				new_face0->V(0) = centroid;
+				new_face0->V(1) = v2;
+				new_face0->V(2) = v0;
+				new_face0->C() = vcg::Color4b::White;
+
 				new_face1->V(0) = centroid;
-				new_face1->V(1) = v0;
+				new_face1->V(1) = v1;
 				new_face1->V(2) = v2;
-		
+				new_face1->C() = vcg::Color4b::White;
+
 				new_face2->V(0) = centroid;
-				new_face2->V(1) = v1;
-				new_face2->V(2) = v2;
+				new_face2->V(1) = v0;
+				new_face2->V(2) = v1;
+				new_face2->C() = vcg::Color4b::White;
 			}
+			vcg::tri::Allocator<MeshType>::CompactFaceVector(mesh);
 		
 			//after all vertices have been added to new mesh, we update the topology
 			vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
@@ -183,6 +189,7 @@ public:
 				}
 
 				//Here we calculate the 4 vertices involved and their coordinates
+				int edge_to_swap = hedge.E();
 				auto aux1 = hedge;
 				aux1.FlipE();
 				aux1.FlipV();
@@ -218,13 +225,13 @@ public:
 					of these triangles lies outside of the circum-sphere of the
 					opposing triangle. If this test fails, the edge is swapped.
 
-					 In this case, we know that the distance from the center of the sphere
-					 to the two non mutual vertices is smaller than the radius, which means that the two
-					 non mutual vertices are inside the sphere.
-					 And therefore, the new edge is smaller than the current one.
-					 */
+					In this case, we know that the distance from the center of the sphere
+					to the two non mutual vertices is smaller than the radius, which means that the two
+					non mutual vertices are inside the sphere.
+					And therefore, the new edge is smaller than the current one.
+					*/
 
-					 //we change the coordinates of the vertices of each of the triangles
+					//we change the coordinates of the vertices of each of the triangles
 					int i = 0;
 					for (i = 0; i < current_face->VN(); i++) {
 						if (current_face->V(i) == mutual_v1) {
@@ -233,7 +240,7 @@ public:
 						}
 					}
 					assert(i != current_face->VN());
-
+					
 					for (i = 0; i < opposing_face->VN(); i++) {
 						if (opposing_face->V(i) == mutual_v2) {
 							opposing_face->V(i) = v1;
@@ -242,8 +249,12 @@ public:
 					}
 					assert(i != opposing_face->VN());
 					//opposing_face->SetV();
-					relaxed_edge = true;
 					vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
+					//if (!vcg::face::CheckFlipEdge(*current_face, edge_to_swap)) {
+					//	std::cout << "edge cant be swapped\n";
+					//}
+					//vcg::face::FlipEdge(*current_face, edge_to_swap);
+					relaxed_edge = true;
 					return true;
 				}
 				else {
@@ -252,7 +263,7 @@ public:
 				}
 			};
 
-			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); fi++) {
+			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); fi++) if(!fi->IsD()) {
 				vcg::face::Pos<FaceType> hedge0(&*fi, 0);
 				relax_edge(hedge0);
 
@@ -268,16 +279,14 @@ public:
 		};
 
 		while (true) {
-			std::cout << mesh.FN() << ", " << mesh.VN() << std::endl;
 			bool s2 = step2();
-			std::cout << mesh.FN() << ", " << mesh.VN() << std::endl;
 			//vcg::tri::io::ExporterOFF<MeshType>::Save(mesh, ("step2_" + std::to_string(c) + ".off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 
 				   //step 3
 			if (!s2) break; //no triangles were added, so the patching mesh is complete
 
 				   //step 5
-			while (step4()) std::cout << "did step4" << std::endl; //while interior edges are relaxed, keep doing step 4
+			while (step4()); //while interior edges are relaxed, keep doing step 4
 			//otherwise we go back to step 2 (begining of the loop)
 			//vcg::tri::io::ExporterOFF<MeshType>::Save(mesh, ("step4_" + std::to_string(c) + ".off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 		}
