@@ -14,6 +14,7 @@ public:
 		vcg::tri::UpdateFlags<MeshType>::VertexClearV(surrounding_mesh);
 		int border_loop_count = 0;
 		std::vector<MeshType*> patched_holes;
+		MeshType * total_patches = new MeshType();
 		// search for a boundary face
 		auto begin = surrounding_mesh.face.begin();
 		auto end = surrounding_mesh.face.end();
@@ -84,19 +85,20 @@ public:
 
 
 					//patched_holes.push_back(patched_mesh);
-					vcg::tri::Append<MeshType, MeshType>::Mesh(surrounding_mesh, patching_mesh);
+					vcg::tri::Append<MeshType, MeshType>::Mesh(*total_patches, patching_mesh);
 					border_loop_count++;
 				}
 			}
 		}
 		printf("Found %i border loops\n", border_loop_count);
 
-			   //new vertices indexes correspond with the indexes of the border vertices
+		//new vertices indexes correspond with the indexes of the border vertices
 		//for (MeshType* patched_hole : patched_holes) {
 		//	vcg::tri::Append<MeshType, MeshType>::Mesh(surrounding_mesh, *patched_hole);
 		//}
 		// save the mesh with the border faces colored in red
-		//vcg::tri::io::ExporterOFF<MeshType>::Save(surrounding_mesh, output_mesh, vcg::tri::io::Mask::IOM_FACECOLOR);
+		vcg::tri::Append<MeshType, MeshType>::Mesh(surrounding_mesh, *total_patches);
+		vcg::tri::io::ExporterOFF<MeshType>::Save(surrounding_mesh, output_mesh, vcg::tri::io::Mask::IOM_FACECOLOR);
 	}
 
 };

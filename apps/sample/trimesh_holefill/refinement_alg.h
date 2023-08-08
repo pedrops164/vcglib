@@ -168,7 +168,6 @@ public:
 		
 			//after all vertices have been added to new mesh, we update the topology
 			vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
-			//new_mesh = aux_mesh;
 			return triangles_added;
 		};
 
@@ -194,24 +193,17 @@ public:
 				aux1.FlipE();
 				aux1.FlipV();
 				FaceType* current_face = aux1.F();
-				VertexType* v1 = aux1.V(); //internal vertex
-				vcg::Point3f v1_cords = v1->P();
-				VertexType* mutual_v1 = hedge.V();
-				vcg::Point3f mutual_v1_cords = mutual_v1->P();
+				vcg::Point3f v1_cords = aux1.V()->P(); //internal vertex
+				vcg::Point3f mutual_v1_cords = hedge.V()->P();
 				hedge.FlipV();
-				VertexType* mutual_v2 = hedge.V();
-				vcg::Point3f mutual_v2_cords = mutual_v2->P();
+				vcg::Point3f mutual_v2_cords = hedge.V()->P();
 				vcg::Point3f center_sphere = (mutual_v1_cords + mutual_v2_cords) / 2;
 				double radius = vcg::Distance(center_sphere, mutual_v1_cords);
 
 				hedge.FlipF();
 				hedge.FlipE();
 				hedge.FlipV();
-				VertexType* v2 = hedge.V(); //opposing vertex
-				vcg::Point3f v2_cords = v2->P();
-				FaceType* opposing_face = hedge.F();
-				//print_vertices(current_face);
-				//print_vertices(opposing_face);
+				vcg::Point3f v2_cords = hedge.V()->P();
 
 				// we calculate the distances of the current edge and the relaxed edge
 				// we relax the edge if the other edge is shorter than the current one
@@ -230,30 +222,9 @@ public:
 					non mutual vertices are inside the sphere.
 					And therefore, the new edge is smaller than the current one.
 					*/
-
-					//we change the coordinates of the vertices of each of the triangles
-					int i = 0;
-					for (i = 0; i < current_face->VN(); i++) {
-						if (current_face->V(i) == mutual_v1) {
-							current_face->V(i) = v2;
-							break;
-						}
-					}
-					assert(i != current_face->VN());
-					
-					for (i = 0; i < opposing_face->VN(); i++) {
-						if (opposing_face->V(i) == mutual_v2) {
-							opposing_face->V(i) = v1;
-							break;
-						}
-					}
-					assert(i != opposing_face->VN());
-					//opposing_face->SetV();
+					assert(vcg::face::CheckFlipEdge(*current_face, edge_to_swap));
+					vcg::face::FlipEdge(*current_face, edge_to_swap);
 					vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
-					//if (!vcg::face::CheckFlipEdge(*current_face, edge_to_swap)) {
-					//	std::cout << "edge cant be swapped\n";
-					//}
-					//vcg::face::FlipEdge(*current_face, edge_to_swap);
 					relaxed_edge = true;
 					return true;
 				}
@@ -262,19 +233,14 @@ public:
 					return false;
 				}
 			};
-
-			for (auto fi = mesh.face.begin(); fi != mesh.face.end(); fi++) if(!fi->IsD()) {
-				vcg::face::Pos<FaceType> hedge0(&*fi, 0);
-				relax_edge(hedge0);
-
-				vcg::face::Pos<FaceType> hedge1(&*fi, 1);
-				relax_edge(hedge1);
-
-				vcg::face::Pos<FaceType> hedge2(&*fi, 2);
-				relax_edge(hedge2);
+			for (int i = 0; i < 3; i++) {
+				for (auto fi = mesh.face.begin(); fi != mesh.face.end(); fi++) if (!fi->IsD()) {
+					vcg::face::Pos<FaceType> hedge(&*fi, i);
+					relax_edge(hedge);
+				}
 			}
+			
 			//returns true if any interior edge was relaxed, false otherwise
-			vcg::tri::UpdateTopology<MeshType>::FaceFace(mesh);
 			return relaxed_edge;
 		};
 
@@ -290,12 +256,5 @@ public:
 			//otherwise we go back to step 2 (begining of the loop)
 			//vcg::tri::io::ExporterOFF<MeshType>::Save(mesh, ("step4_" + std::to_string(c) + ".off").c_str(), vcg::tri::io::Mask::IOM_FACECOLOR);
 		}
-
-		//incorrect solutions to fix the color of the faces
-		//
-		//vcg::tri::UpdateColor<MeshType>::PerFaceConstant(mesh);
-		//
-		//vcg::tri::UpdateNormal<MeshType>::PerVertex(mesh);
-		//vcg::tri::UpdateNormal<MeshType>::PerFace(mesh);
 	}
 };
